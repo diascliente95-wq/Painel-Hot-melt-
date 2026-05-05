@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Hot-Melt | Controle de Produção</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        display: ['Orbitron', 'monospace'],
+                        body: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        :root {
+            --bg: #0c1117;
+            --card: #141c26;
+            --card-alt: #1a2433;
+            --border: #1e2d3d;
+            --text: #e0e6ed;
+            --text-muted: #6b8299;
+            --green: #00e676;
+            --amber: #ffab00;
+            --red: #ff3d00;
+            --blue: #00b0ff;
+            --whatsapp: #25D366;
+        }
+        * { box-sizing: border-box; margin: 0; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            background-image: radial-gradient(circle at 1px 1px, rgba(30,45,61,0.4) 1px, transparent 0);
+            background-size: 36px 36px;
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+        .clock-colon { animation: blink 1s infinite; }
+
+        @keyframes flashGreen { 0%{box-shadow:inset 0 0 20px rgba(0,230,118,.25)} 100%{box-shadow:none} }
+        @keyframes flashRed { 0%{box-shadow:inset 0 0 20px rgba(255,61,0,.25)} 100%{box-shadow:none} }
+        .flash-g { animation: flashGreen .5s ease-out; }
+        .flash-r { animation: flashRed .5s ease-out; }
+
+        @keyframes slideIn { from{transform:translateX(120%);opacity:0} to{transform:translateX(0);opacity:1} }
+        @keyframes slideOut { from{transform:translateX(0);opacity:1} to{transform:translateX(120%);opacity:0} }
+        .toast-in { animation: slideIn .3s ease-out; }
+        .toast-out { animation: slideOut .3s ease-in forwards; }
+
+        .panel-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            transition: border-color .2s;
+        }
+        .panel-card:hover { border-color: rgba(255,255,255,.08); }
+
+        .p-input {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            padding: 9px 12px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color .2s;
+            width: 100%;
+            font-family: 'Inter', sans-serif;
+        }
+        .p-input:focus { border-color: var(--green); }
+        .p-input::placeholder { color: var(--text-muted); opacity: .6; }
+
+        .p-select {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            padding: 9px 12px;
+            font-size: 14px;
+            outline: none;
+            cursor: pointer;
+            width: 100%;
+            font-family: 'Inter', sans-serif;
+        }
+        .p-select:focus { border-color: var(--green); }
+
+        .btn-add {
+            background: var(--green);
+            color: #0c1117;
+            font-weight: 700;
+            padding: 9px 18px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            transition: all .15s;
+            font-size: 14px;
+            font-family: 'Inter', sans-serif;
+            white-space: nowrap;
+        }
+        .btn-add:hover { filter: brightness(1.1); transform: translateY(-1px); }
+        .btn-add:active { transform: translateY(0); }
+
+        .btn-wa {
+            background: var(--whatsapp);
+            color: #fff;
+            font-weight: 700;
+            padding: 14px 28px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            transition: all .2s;
+            font-size: 16px;
+            font-family: 'Inter', sans-serif;
+        }
+        .btn-wa:hover { filter: brightness(1.1); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(37,211,102,.3); }
+
+        .btn-save {
+            background: var(--blue);
+            color: #fff;
+            font-weight: 700;
+            padding: 14px 28px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            transition: all .2s;
+            font-size: 16px;
+            font-family: 'Inter', sans-serif;
+        }
+        .btn-save:hover { filter: brightness(1.1); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,176,255,.3); }
+
+        .toggle-group { display: flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+        .toggle-btn {
+            padding: 9px 18px;
+            background: var(--bg);
+            color: var(--text-muted);
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all .15s;
+            flex: 1;
+            text-align: center;
+            font-family: 'Inter', sans-serif;
+        }
+        .toggle-btn.active { background: var(--green); color: #0c1117; }
+
+        .stepper { display: flex; align-items: center; }
+        .step-btn {
+            width: 42px; height: 42px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all .12s;
+        }
+        .step-btn:first-child { border-radius: 8px 0 0 8px; }
+        .step-btn:last-child { border-radius: 0 8px 8px 0; }
+        .step-btn:hover { background: var(--card-alt); }
+        .step-btn:active { background: var(--green); color: #0c1117; }
+        .step-input {
+            width: 80px; height: 42px;
+            background: var(--card-alt);
+            border: 1px solid var(--border);
+            border-left: none; border-right: none;
+            color: var(--text);
+            font-size: 17px;
+            font-weight: 700;
+            text-align: center;
+            outline: none;
+            font-family: 'Orbitron', monospace;
+            -moz-appearance: textfield;
+        }
+        .step-input::-webkit-outer-spin-button,
+        .step-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+        .op-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--card-alt);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 5px 8px 5px 14px;
+            font-size: 13px;
+        }
+        .op-tag button {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 11px;
+            width: 20px; height: 20px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            transition: all .15s;
+        }
+        .op-tag button:hover { color: var(--red); background: rgba(255,61,0,.12); }
+
+        .occ-item {
+            background: var(--card-alt);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 12px;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            transition: border-color .2s;
+        }
+        .occ-item:hover { border-color: rgba(255,255,255,.08); }
+        .occ-item .del-btn {
+            background: none; border: none; color: var(--text-muted); cursor: pointer;
+            font-size: 12px; padding: 4px; border-radius: 4px; transition: all .15s; flex-shrink: 0;
+        }
+        .occ-item .del-btn:hover { color: var(--red); background: rgba(255,61,0,.12); }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            white-space: nowrap;
+        }
+        .badge-man { background: rgba(255,171,0,.15); color: var(--amber); }
+        .badge-ele { background: rgba(255,235,59,.15); color: #ffeb3b; }
+        .badge-out { background: rgba(107,130,153,.15); color: var(--text-muted); }
+        .badge-caixa { background: rgba(0,230,118,.15); color: var(--green); }
+        .badge-tampa { background: rgba(0,176,255,.15); color: var(--blue); }
+
+        .prog-bar { height: 8px; background: rgba(255,61,0,.15); border-radius: 4px; overflow: hidden; }
+        .prog-fill { height: 100%; background: var(--green); border-radius: 4px; transition: width .3s; }
+
+        .calc-val {
+            font-size: 17px;
+            font-weight: 700;
+            font-family: 'Orbitron', monospace;
+            padding: 4px 8px;
+            border-radius: 6px;
+            transition: all .2s;
+        }
+        .calc-val small { font-size: 10px; font-weight: 400; font-family: 'Inter', sans-serif; color: var(--text-muted); }
+
+        .bt-green { border-top: 3px solid var(--green); }
+        .bt-blue { border-top: 3px solid var(--blue); }
+
+        .section-title {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: var(--text-muted);
+        }
+        .label-text { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; display: block; font-weight: 500; }
+
+        .empty-msg { color: var(--text-muted); font-size: 13px; font-style: italic; text-align: center; padding: 20px 0; }
+
+        @media (prefers-reduced-motion: reduce) {
+            .clock-colon, .toast-in, .toast-out, .flash-g, .flash-r { animation: none !important; }
+        }
+        @media (max-width: 640px) {
+            .calc-val { font-size: 14px; }
+            .step-input { width: 65px; font-size: 14px; }
+        }
+    </style>
+</head>
+<body class="pb-12">
+
+    <!-- Toasts -->
+    <div id="toast-box" class="fixed top-4 right-4 z-50 flex flex-col gap-2" style="max-width:360px;"></div>
+
+    <!-- Cabeçalho -->
+    <header class="sticky top-0 z-40" style="background:linear-gradient(180deg,var(--card),var(--bg));border-bottom:1px solid var(--border);">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background:linear-gradient(135deg,var(--green),var(--blue));">
+                    <i class="fas fa-industry text-white text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="font-display text-base sm:text-lg font-bold tracking-wider" style="color:var(--green);">HOT-MELT</h1>
+                    <p class="text-xs" style="color:var(--text-muted);">Controle de Producao</p>
+                </div>
+            </div>
+            <div class="font-display text-xl sm:text-2xl font-bold tracking-widest">
+                <span id="clk-h">00</span><span class="clock-colon">:</span><span id="clk-m">00</span><span class="clock-colon">:</span><span id="clk-s">00</span>
+            </div>
+            <div class="flex items-center gap-2 text-sm">
+                <i class="far fa-calendar" style="color:var(--text-muted);"></i>
+                <span id="clk-date"></span>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 mt-5 space-y-5">
+
+        <!-- Turno & Operadores -->
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div class="panel-card p-4">
+                <h2 class="section-title mb-3"><i class="far fa-clock mr-2"></i>Informacoes do Turno</h2>
+                <div class="grid grid-cols-3 gap-3">
+                    <div>
+                        <label class="label-text">Turno</label>
+                        <select id="shift-type" class="p-select">
+                            <option value="1o Turno">1o Turno</option>
+                            <option value="2o Turno">2o Turno</option>
+                            <option value="3o Turno">3o Turno</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="label-text">Inicio</label>
+                        <input type="time" id="shift-start" class="p-input" value="06:00">
+                    </div>
+                    <div>
+                        <label class="label-text">Fim</label>
+                        <input type="time" id="shift-end" class="p-input" value="14:00">
+                    </div>
+                </div>
+            </div>
+            <div class="panel-card p-4">
+                <h2 class="section-title mb-3"><i class="fas fa-users mr-2"></i>Operadores na Area</h2>
+                <div class="flex gap-2 mb-3">
+                    <input type="text" id="op-input" class="p-input" style="flex:1" placeholder="Nome do operador" maxlength="40">
+                    <button class="btn-add" onclick="addOperator()"><i class="fas fa-plus mr-1"></i>Adicionar</button>
+                </div>
+                <div id="op-list" class="flex flex-wrap gap-2 min-h-[30px]">
+                    <span class="empty-msg w-full" id="op-empty">Nenhum operador adicionado</span>
+                </div>
+                <datalist id="op-dl"></datalist>
+            </div>
+        </section>
+
+        <!-- Produção CAIXA e TAMPA -->
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+            <!-- CAIXA -->
+            <div class="panel-card bt-green overflow-hidden">
+                <div class="p-4 pb-0">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-base font-bold" style="color:var(--green);"><i class="fas fa-box mr-2"></i>CAIXAS</h2>
+                        <span class="text-xs px-2 py-1 rounded" style="background:rgba(0,230,118,.1);color:var(--green);">0,385 kg/lamina</span>
+                    </div>
+                    <div class="mb-4">
+                        <label class="label-text">Unidades por Pallet</label>
+                        <div class="toggle-group">
+                            <button class="toggle-btn active" onclick="setCaixaU(270,this)">270 un</button>
+                            <button class="toggle-btn" onclick="setCaixaU(300,this)">300 un</button>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="label-text">Pallets Produzidas</label>
+                        <div class="stepper">
+                            <button class="step-btn" onclick="stepV('cx-pal',-1)"><i class="fas fa-minus text-xs"></i></button>
+                            <input type="number" id="cx-pal" class="step-input" value="0" min="0" oninput="calcCaixa()">
+                            <button class="step-btn" onclick="stepV('cx-pal',1)"><i class="fas fa-plus text-xs"></i></button>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="label-text" style="color:var(--red);"><i class="fas fa-exclamation-triangle mr-1"></i>Perda de Processo (unidades)</label>
+                        <div class="stepper">
+                            <button class="step-btn" onclick="stepV('cx-per',-1)"><i class="fas fa-minus text-xs"></i></button>
+                            <input type="number" id="cx-per" class="step-input" value="0" min="0" oninput="calcCaixa()">
+                            <button class="step-btn" onclick="stepV('cx-per',1)"><i class="fas fa-plus text-xs"></i></button>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-4" style="background:var(--card-alt);border-top:1px solid var(--border);">
+                    <h3 class="section-title mb-3">Resultados Caixas</h3>
+                    <div class="mb-3">
+                        <div class="flex justify-between text-xs mb-1">
+                            <span style="color:var(--text-muted);">Producao vs Perdas</span>
+                            <span id="cx-pct" style="color:var(--red);">0,0%</span>
+                        </div>
+                        <div class="prog-bar"><div id="cx-bar" class="prog-fill" style="width:100%"></div></div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="p-3 rounded-lg" style="background:var(--bg);">
+                            <div class="label-text">Total Produzido</div>
+                            <div class="calc-val" id="cx-tot" style="color:var(--green);">0 <small>un</small></div>
+                        </div>
+                        <div class="p-3 rounded-lg" style="background:var(--bg);">
+                            <div class="label-text">Consumo Total</div>
+                            <div class="calc-val" id="cx-con" style="color:var(--amber);">0 <small>un</small></div>
+                        </div>
+                        <div class="p-3 rounded-lg" style="background:var(--bg);">
+                            <div class="label-text">Peso Produzido</div>
+                            <div class="calc-val" id="cx-wp" style="color:var(--green);">0,000 <small>kg</small></div>
+                        </div>
+                        <div class="p-3 rounded-lg" style="background:var(--bg);">
+                            <div class="label-text">Peso Perdas</div>
+                            <div class="calc-val" id="cx-wl" style="color:var(--red);">0,000 <small>kg</small></div>
+                        </div>
+                        <div class="p-3 rounded-lg col-span-2" style="background:var(--bg);">
+                            <div class="label-text">Peso Total Consumo</div>
+                            <div class="calc-val text-xl" id="cx-wt" style="color:var(--amber);">0,000 <small>kg</small></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAMPA -->
+            <div class="panel-card bt-blue overflow-hidden">
+                <div class="p-4 pb-0">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-base font-bold" style="color:var(--blue);"><i class="fas fa-circle-dot mr-2"></i>TAMPAS</h2>
+                        <span class="text-xs px-2 py-1 rounded" style="background:rgba(0,176,255,.1);color:var(--blue);">0,085 kg/lamina</span>
+                    </div>
+                    <div class="mb-4">
+                        <label class="label-text">Unidades por Pallet</label>
+                        <div class="p-input" style="text-align:center;font-weight:700;color:var(--blue);cursor:default;">2.000 un <span style="color:var(--text-muted);font-weight:400;font-size:11px;">(fixo)</span></div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="label-text">Pallets Produzidas</label>
+                        <div class="stepper">
+                            <button class="step-btn" onclick="stepV('tp-pal',-1)"><i class="fas fa-minus text-xs"></i></button>
+                            <input type="number" id="tp-pal" class="step-input" value="0" min="0" oninput="calcTampa()">
+                            <button class="step-btn" onclick="stepV('tp-pal',1)"><i class="fas fa-plus text-xs"></i></button>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="label-text" style="color:var(--red);"><i class="fas fa-exclamation-triangle mr-1"></i>Perda de Processo (unidades)</label>
+                        <div class="stepper">
+                            <button class="step-btn" onclick="stepV('tp-per',-1)"><i class="fas fa-minus text-xs"></i></button>
+                            <input type="number" id="tp-per" class="step-input" value="0" min="0" oninput="calcTampa()">
+                            <button class="step-btn" onclick="stepV('tp-per',1)"><i class="fas fa-plus text-xs"></i></button>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-4" style="background:var(--card-alt);border-top:1px solid var(--border);">
+                    <h3 class="section-title mb-3">Resultados Tampas</h3>
+                    <div class="mb-3">
+                        <div class="flex justify-between text-xs mb-1">
+                            <span style="color:var(--text-muted);">Producao vs Perdas</span>
+                            <span id="tp-pct" style="color:var(--red);">0,0%</span>
+                        </div>
+                        <div class="prog-bar"><div id="tp-bar" class="prog-fill" style="width:100%;background:var(--blue)"></div></div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="p-3 rounded-lg" style="background:var(--bg);">
+                            <div class="label-text">Total Produzido</div>
+                            <div class="calc-val" id="tp-tot" style="color:var(--blue);">0 <small>un</small></div>
+                        </div>
+                        <div class="p-3 rounded-lg" style="background:var(--bg);">
+                            <div class="label-text">Consumo Total</div>
+                            <div class="calc-val" id="tp-con" style="color:var(--amber);">0 <small>un</small></div>
+                        </div>
+                        <div class="p-3 rounded-lg" style="background:var(--bg);">
+                            <div class="label-text">Peso Produzido</div>
+                            <div class="calc-val" id="tp-wp" style="color:var(--blue);">0,000 <small>kg</small></div>
+                        </div>
+                        <div class="p-3 rounded-lg" style="background:var(--bg);">
+                            <div class="label-text">Peso Perdas</div>
+                            <div class="calc-val" id="tp-wl" style="color:var(--red);">0,000 <small>kg</small></div>
+                        </div>
+                        <div class="p-3 rounded-lg col-span-2" style="background:var(--bg);">
+                            <div class="label-text">Peso Total Consumo</div>
+                            <div class="calc-val text-xl" id="tp-wt" style="color:var(--amber);">0,000 <small>kg</small></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Ocorrências & Troca de Componentes (formulários) -->
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+            <!-- Ocorrência -->
+            <div class="panel-card p-4">
+                <h2 class="section-title mb-3"><i class="fas fa-clipboard-list mr-2"></i>Adicionar Ocorrencia</h2>
+                <div class="grid grid-cols-2 gap-3 mb-3">
+                    <div class="col-span-2">
+                        <label class="label-text">Tipo</label>
+                        <select id="occ-type" class="p-select">
+                            <option value="Manutencao">Manutencao</option>
+                            <option value="Eletrica">Eletrica</option>
+                            <option value="Outro">Outro</option>
+                        </select>
+                    </div>
+                    <div class="col-span-2">
+                        <label class="label-text">Descricao</label>
+                        <input type="text" id="occ-desc" class="p-input" placeholder="Descreva a ocorrencia" maxlength="120">
+                    </div>
+                    <div>
+                        <label class="label-text">Horario</label>
+                        <input type="time" id="occ-time" class="p-input">
+                    </div>
+                    <div>
+                        <label class="label-text">Duracao (min)</label>
+                        <input type="number" id="occ-dur" class="p-input" placeholder="0" min="0">
+                    </div>
+                </div>
+                <button class="btn-add w-full" onclick="addOcc()"><i class="fas fa-plus mr-2"></i>Registrar Ocorrencia</button>
+            </div>
+
+            <!-- Troca de Componentes -->
+            <div class="panel-card p-4">
+                <h2 class="section-title mb-3"><i class="fas fa-wrench mr-2"></i>Troca de Componentes</h2>
+                <div class="grid grid-cols-2 gap-3 mb-3">
+                    <div>
+                        <label class="label-text">Maquina</label>
+                        <select id="cmp-maq" class="p-select">
+                            <option value="Caixa">Caixa</option>
+                            <option value="Tampa">Tampa</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="label-text">Componente</label>
+                        <select id="cmp-part" class="p-select">
+                            <option value="Botoeira">Botoeira</option>
+                            <option value="Ventosa">Ventosa</option>
+                            <option value="Mangueira">Mangueira</option>
+                            <option value="Sensor">Sensor</option>
+                            <option value="Plataforma de Caixa">Plataforma de Caixa</option>
+                            <option value="Roda da Plataforma">Roda da Plataforma de Caixa</option>
+                            <option value="Transportadora de Caixa">Transportadora de Caixa</option>
+                            <option value="Guias Transportadora">Trocar das Guias Transportadora</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="label-text">Horario Entrada</label>
+                        <input type="time" id="cmp-in" class="p-input">
+                    </div>
+                    <div>
+                        <label class="label-text">Horario Saida</label>
+                        <input type="time" id="cmp-out" class="p-input">
+                    </div>
+                    <div class="col-span-2">
+                        <label class="label-text">Operador</label>
+                        <input type="text" id="cmp-op" class="p-input" placeholder="Quem realizou a troca" list="op-dl" maxlength="40">
+                    </div>
+                </div>
+                <button class="btn-add w-full" onclick="addCmp()"><i class="fas fa-plus mr-2"></i>Registrar Troca</button>
+            </div>
+        </section>
+
+        <!-- Listas de Ocorrências e Componentes -->
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div class="panel-card p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="section-title"><i class="fas fa-list mr-2"></i>Ocorrencias Registradas</h2>
+                    <span id="occ-count" class="text-xs font-bold px-2 py-1 rounded" style="background:var(--card-alt);color:var(--text-muted);">0</span>
+                </div>
+                <div id="occ-list" class="space-y-2" style="max-height:320px;overflow-y:auto;">
+                    <p class="empty-msg" id="occ-empty">Nenhuma ocorrencia registrada</p>
+                </div>
+            </div>
+            <div class="panel-card p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="section-title"><i class="fas fa-cogs mr-2"></i>Trocas de Componentes</h2>
+                    <span id="cmp-count" class="text-xs font-bold px-2 py-1 rounded" style="background:var(--card-alt);color:var(--text-muted);">0</span>
+                </div>
+                <div id="cmp-list" class="space-y-2" style="max-height:320px;overflow-y:auto;">
+                    <p class="empty-msg" id="cmp-empty">Nenhuma troca registrada</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Relatório -->
+        <section class="panel-card p-6">
+            <h2 class="section-title text-center mb-1"><i class="fas fa-file-alt mr-2"></i>Gerar Relatorio</h2>
+            <p class="text-center text-xs mb-5" style="color:var(--text-muted);">Salve em arquivo ou compartilhe diretamente pelo WhatsApp</p>
+            <div class="flex flex-wrap justify-center gap-4">
+                <button class="btn-save" onclick="saveReport()"><i class="fas fa-download mr-2"></i>Salvar Relatorio TXT</button>
+                <button class="btn-wa" onclick="shareWA()"><i class="fab fa-whatsapp mr-2"></i>Compartilhar WhatsApp</button>
+            </div>
+        </section>
+    </main>
+
+    <script>
+    /* ===== ESTADO ===== */
+    const S = {
+        operators: [],
+        cx: { upp: 270 },
+        tp: { upp: 2000 },
+        occs: [],
+        cmps: []
+    };
+
+    /* ===== UTILITÁRIOS ===== */
+    const $ = id => document.getElementById(id);
+    const fmtN = n => Number(n).toLocaleString('pt-BR');
+    const fmtW = n => n.toFixed(3).replace('.', ',');
+    const now = () => {
+        const d = new Date();
+        return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+    };
+
+    /* ===== RELÓGIO ===== */
+    function tickClock() {
+        const d = new Date();
+        $('clk-h').textContent = String(d.getHours()).padStart(2,'0');
+        $('clk-m').textContent = String(d.getMinutes()).padStart(2,'0');
+        $('clk-s').textContent = String(d.getSeconds()).padStart(2,'0');
+        const dias = ['Domingo','Segunda','Terca','Quarta','Quinta','Sexta','Sabado'];
+        const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+        $('clk-date').textContent = `${dias[d.getDay()]}, ${d.getDate()} ${meses[d.getMonth()]} ${d.getFullYear()}`;
+    }
+    setInterval(tickClock, 1000);
+    tickClock();
+
+    /* ===== TOAST ===== */
+    function toast(msg, tipo = 'ok') {
+        const box = $('toast-box');
+        const el = document.createElement('div');
+        const cores = {
+            ok: 'border-l-4 border-[#00e676]',
+            err: 'border-l-4 border-[#ff3d00]',
+            info: 'border-l-4 border-[#00b0ff]'
+        };
+        el.className = `toast-in ${cores[tipo] || cores.ok} px-4 py-3 rounded-lg text-sm font-medium`;
+        el.style.cssText = 'background:var(--card);color:var(--text);box-shadow:0 4px 20px rgba(0,0,0,.4);';
+        el.textContent = msg;
+        box.appendChild(el);
+        setTimeout(() => {
+            el.classList.replace('toast-in','toast-out');
+            setTimeout(() => el.remove(), 300);
+        }, 2500);
+    }
+
+    /* ===== OPERADORES ===== */
+    $('op-input').addEventListener('keydown', e => { if(e.key === 'Enter') addOperator(); });
+
+    function addOperator() {
+        const inp = $('op-input');
+        const nome = inp.value.trim();
+        if (!nome) { toast('Digite o nome do operador', 'err'); inp.focus(); return; }
+        if (S.operators.includes(nome)) { toast('Operador ja adicionado', 'err'); return; }
+        S.operators.push(nome);
+        inp.value = '';
+        inp.focus();
+        renderOps();
+        toast(`${nome} adicionado`);
+    }
+
+    function removeOp(i) {
+        const nome = S.operators.splice(i, 1)[0];
+        renderOps();
+        toast(`${nome} removido`, 'info');
+    }
+
+    function renderOps() {
+        const list = $('op-list');
+        const dl = $('op-dl');
+        if (S.operators.length === 0) {
+            list.innerHTML = '<span class="empty-msg w-full">Nenhum operador adicionado</span>';
+        } else {
+            list.innerHTML = S.operators.map((o,i) =>
+                `<span class="op-tag">${o}<button onclick="removeOp(${i})" aria-label="Remover ${o}"><i class="fas fa-times"></i></button></span>`
+            ).join('');
+        }
+        dl.innerHTML = S.operators.map(o => `<option value="${o}">`).join('');
+    }
+
+    /* ===== STEPPER GENÉRICO ===== */
+    function stepV(id, delta) {
+        const inp = $(id);
+        let v = parseInt(inp.value) || 0;
+        v = Math.max(0, v + delta);
+        inp.value = v;
+        inp.dispatchEvent(new Event('input'));
+    }
+
+    /* ===== CAIXA ===== */
+    function setCaixaU(val, btn) {
+        S.cx.upp = val;
+        btn.parentElement.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        calcCaixa();
+    }
+
+    function calcCaixa() {
+        const pal = Math.max(0, parseInt($('cx-pal').value) || 0);
+        const per = Math.max(0, parseInt($('cx-per').value) || 0);
+        const tot = pal * S.cx.upp;
+        const con = tot + per;
+        const wp = tot * 0.385;
+        const wl = per * 0.385;
+        const wt = con * 0.385;
+        const pct = tot > 0 ? (per / (tot + per)) * 100 : 0;
+
+        $('cx-tot').innerHTML = `${fmtN(tot)} <small>un</small>`;
+        $('cx-con').innerHTML = `${fmtN(con)} <small>un</small>`;
+        $('cx-wp').innerHTML = `${fmtW(wp)} <small>kg</small>`;
+        $('cx-wl').innerHTML = `${fmtW(wl)} <small>kg</small>`;
+        $('cx-wt').innerHTML = `${fmtW(wt)} <small>kg</small>`;
+        $('cx-pct').textContent = pct.toFixed(1).replace('.',',') + '%';
+        $('cx-bar').style.width = (100 - pct) + '%';
+
+        // Flash nos valores
+        const totEl = $('cx-tot').parentElement;
+        const perEl = $('cx-wl').parentElement;
+        totEl.classList.remove('flash-g'); void totEl.offsetWidth; totEl.classList.add('flash-g');
+        if (per > 0) { perEl.classList.remove('flash-r'); void perEl.offsetWidth; perEl.classList.add('flash-r'); }
+    }
+
+    /* ===== TAMPA ===== */
+    function calcTampa() {
+        const pal = Math.max(0, parseInt($('tp-pal').value) || 0);
+        const per = Math.max(0, parseInt($('tp-per').value) || 0);
+        const tot = pal * S.tp.upp;
+        const con = tot + per;
+        const wp = tot * 0.085;
+        const wl = per * 0.085;
+        const wt = con * 0.085;
+        const pct = tot > 0 ? (per / (tot + per)) * 100 : 0;
+
+        $('tp-tot').innerHTML = `${fmtN(tot)} <small>un</small>`;
+        $('tp-con').innerHTML = `${fmtN(con)} <small>un</small>`;
+        $('tp-wp').innerHTML = `${fmtW(wp)} <small>kg</small>`;
+        $('tp-wl').innerHTML = `${fmtW(wl)} <small>kg</small>`;
+        $('tp-wt').innerHTML = `${fmtW(wt)} <small>kg</small>`;
+        $('tp-pct').textContent = pct.toFixed(1).replace('.',',') + '%';
+        $('tp-bar').style.width = (100 - pct) + '%';
+
+        const totEl = $('tp-tot').parentElement;
+        const perEl = $('tp-wl').parentElement;
+        totEl.classList.remove('flash-g'); void totEl.offsetWidth; totEl.classList.add('flash-g');
+        if (per > 0) { perEl.classList.remove('flash-r'); void perEl.offsetWidth; perEl.classList.add('flash-r'); }
+    }
+
+    /* ===== OCORRÊNCIAS ===== */
+    function addOcc() {
+        const tipo = $('occ-type').value;
+        const desc = $('occ-desc').value.trim();
+        const time = $('occ-time').value || now();
+        const dur = $('occ-dur').value || '0';
+        if (!desc) { toast('Descreva a ocorrencia', 'err'); $('occ-desc').focus(); return; }
+
+        S.occs.push({ tipo, desc, time, dur });
+        $('occ-desc').value = '';
+        $('occ-dur').value = '';
+        renderOccs();
+        toast('Ocorrencia registrada');
+    }
+
+    function removeOcc(i) {
+        S.occs.splice(i, 1);
+        renderOccs();
+        toast('Ocorrencia removida', 'info');
+    }
+
+    function renderOccs() {
+        $('occ-count').textContent = S.occs.length;
+        if (S.occs.length === 0) {
+            $('occ-list').innerHTML = '<p class="empty-msg">Nenhuma ocorrencia registrada</p>';
+            return;
+        }
+        const badgeMap = { Manutencao: 'badge-man', Eletrica: 'badge-ele', Outro: 'badge-out' };
+        $('occ-list').innerHTML = S.occs.map((o, i) => `
+            <div class="occ-item">
+                <span class="badge ${badgeMap[o.tipo] || 'badge-out'}">${o.tipo}</span>
+                <div class="flex-1 min-w-0">
+                    <div class="text-sm font-medium" style="color:var(--text);">${o.desc}</div>
+                    <div class="text-xs mt-1" style="color:var(--text-muted);">
+                        <i class="far fa-clock mr-1"></i>${o.time}
+                        ${parseInt(o.dur) > 0 ? ` &bull; <i class="far fa-hourglass mr-1"></i>${o.dur} min` : ''}
+                    </div>
+                </div>
+                <button class="del-btn" onclick="removeOcc(${i})" aria-label="Remover"><i class="fas fa-trash-alt"></i></button>
+            </div>
+        `).join('');
+    }
+
+    /* ===== TROCA DE COMPONENTES ===== */
+    function addCmp() {
+        const maq = $('cmp-maq').value;
+        const part = $('cmp-part').value;
+        const tIn = $('cmp-in').value || now();
+        const tOut = $('cmp-out').value || '';
+        const op = $('cmp-op').value.trim();
+        if (!op) { toast('Informe o operador', 'err'); $('cmp-op').focus(); return; }
+
+        S.cmps.push({ maq, part, tIn, tOut, op });
+        $('cmp-op').value = '';
+        $('cmp-in').value = '';
+        $('cmp-out').value = '';
+        renderCmps();
+        toast('Troca de componente registrada');
+    }
+
+    function removeCmp(i) {
+        S.cmps.splice(i, 1);
+        renderCmps();
+        toast('Troca removida', 'info');
+    }
+
+    function renderCmps() {
+        $('cmp-count').textContent = S.cmps.length;
+        if (S.cmps.length === 0) {
+            $('cmp-list').innerHTML = '<p class="empty-msg">Nenhuma troca registrada</p>';
+            return;
+        }
+        $('cmp-list').innerHTML = S.cmps.map((c, i) => `
+            <div class="occ-item">
+                <span class="badge ${c.maq === 'Caixa' ? 'badge-caixa' : 'badge-tampa'}">${c.maq}</span>
+                <div class="flex-1 min-w-0">
+                    <div class="text-sm font-medium" style="color:var(--text);">${c.part}</div>
+                    <div class="text-xs mt-1" style="color:var(--text-muted);">
+                        <i class="far fa-clock mr-1"></i>${c.tIn}${c.tOut ? ' → ' + c.tOut : ''}
+                        &bull; <i class="fas fa-user mr-1"></i>${c.op}
+                    </div>
+                </div>
+                <button class="del-btn" onclick="removeCmp(${i})" aria-label="Remover"><i class="fas fa-trash-alt"></i></button>
+            </div>
+        `).join('');
+    }
+
+    /* ===== GERAR TEXTO DO RELATÓRIO ===== */
+    function genReport() {
+        const turno = $('shift-type').value;
+        const hIni = $('shift-start').value || '--:--';
+        const hFim = $('shift-end').value || '--:--';
+        const d = new Date();
+        const dataStr = `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+
+        const cxPal = Math.max(0, parseInt($('cx-pal').value) || 0);
+        const cxPer = Math.max(0, parseInt($('cx-per').value) || 0);
+        const cxTot = cxPal * S.cx.upp;
+        const cxCon = cxTot + cxPer;
+        const cxWp = cxTot * 0.385;
+        const cxWl = cxPer * 0.385;
+        const cxWt = cxCon * 0.385;
+
+        const tpPal = Math.max(0, parseInt($('tp-pal').value) || 0);
+        const tpPer = Math.max(0, parseInt($('tp-per').value) || 0);
+        const tpTot = tpPal * S.tp.upp;
+        const tpCon = tpTot + tpPer;
+        const tpWp = tpTot * 0.085;
+        const tpWl = tpPer * 0.085;
+        const tpWt = tpCon * 0.085;
+
+        let txt = '';
+        txt += '================================\n';
+        txt += '   RELATORIO PRODUCAO HOT-MELT\n';
+        txt += '================================\n\n';
+        txt += `Data: ${dataStr}\n`;
+        txt += `Turno: ${turno} | ${hIni} - ${hFim}\n`;
+        txt += `Operadores: ${S.operators.length > 0 ? S.operators.join(', ') : 'Nenhum informado'}\n\n`;
+
+        txt += '---------- CAIXAS ----------\n';
+        txt += `Pallets: ${cxPal} (${S.cx.upp} un/pallet)\n`;
+        txt += `Total Produzido: ${fmtN(cxTot)} un | ${fmtW(cxWp)} kg\n`;
+        txt += `Perdas: ${fmtN(cxPer)} un | ${fmtW(cxWl)} kg\n`;
+        txt += `Consumo Total: ${fmtN(cxCon)} un | ${fmtW(cxWt)} kg\n\n`;
+
+        txt += '---------- TAMPAS ----------\n';
+        txt += `Pallets: ${tpPal} (2.000 un/pallet)\n`;
+        txt += `Total Produzido: ${fmtN(tpTot)} un | ${fmtW(tpWp)} kg\n`;
+        txt += `Perdas: ${fmtN(tpPer)} un | ${fmtW(tpWl)} kg\n`;
+        txt += `Consumo Total: ${fmtN(tpCon)} un | ${fmtW(tpWt)} kg\n\n`;
+
+        if (S.occs.length > 0) {
+            txt += '-------- OCORRENCIAS --------\n';
+            S.occs.forEach((o, i) => {
+                txt += `${i+1}. [${o.tipo.toUpperCase()}] ${o.time}`;
+                if (parseInt(o.dur) > 0) txt += ` (${o.dur}min)`;
+                txt += ` - ${o.desc}\n`;
+            });
+            txt += '\n';
+        }
+
+        if (S.cmps.length > 0) {
+            txt += '----- TROCA COMPONENTES -----\n';
+            S.cmps.forEach((c, i) => {
+                txt += `${i+1}. [${c.maq.toUpperCase()}] ${c.part} - ${c.tIn}`;
+                if (c.tOut) txt += ` -> ${c.tOut}`;
+                txt += ` | ${c.op}\n`;
+            });
+            txt += '\n';
+        }
+
+        txt += '================================\n';
+        txt += `Gerado em: ${d.toLocaleString('pt-BR')}\n`;
+        return txt;
+    }
+
+    /* ===== SALVAR RELATÓRIO ===== */
+    function saveReport() {
+        const txt = genReport();
+        const d = new Date();
+        const nome = `relatorio-hotmelt-${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.txt`;
+        const blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = nome;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        toast('Relatorio salvo com sucesso');
+    }
+
+    /* ===== COMPARTILHAR WHATSAPP ===== */
+    function shareWA() {
+        const txt = genReport();
+        // Converter para formato WhatsApp-friendly (sem os traços pesados)
+        let wa = '';
+        wa += '*RELATORIO PRODUCAO HOT-MELT*\n\n';
+        const d = new Date();
+        const dataStr = `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+        wa += `Data: ${dataStr}\n`;
+        wa += `Turno: ${$('shift-type').value} | ${$('shift-start').value || '--:--'} - ${$('shift-end').value || '--:--'}\n`;
+        wa += `Operadores: ${S.operators.length > 0 ? S.operators.join(', ') : 'Nenhum informado'}\n\n`;
+
+        const cxPal = Math.max(0, parseInt($('cx-pal').value) || 0);
+        const cxPer = Math.max(0, parseInt($('cx-per').value) || 0);
+        const cxTot = cxPal * S.cx.upp;
+        const cxCon = cxTot + cxPer;
+
+        wa += '*CAIXAS*\n';
+        wa += `Pallets: ${cxPal} (${S.cx.upp} un)\n`;
+        wa += `Produzido: ${fmtN(cxTot)} un | ${fmtW(cxTot*0.385)} kg\n`;
+        wa += `Perdas: ${fmtN(cxPer)} un | ${fmtW(cxPer*0.385)} kg\n`;
+        wa += `Consumo Total: ${fmtN(cxCon)} un | ${fmtW(cxCon*0.385)} kg\n\n`;
+
+        const tpPal = Math.max(0, parseInt($('tp-pal').value) || 0);
+        const tpPer = Math.max(0, parseInt($('tp-per').value) || 0);
+        const tpTot = tpPal * S.tp.upp;
+        const tpCon = tpTot + tpPer;
+
+        wa += '*TAMPAS*\n';
+        wa += `Pallets: ${tpPal} (2.000 un)\n`;
+        wa += `Produzido: ${fmtN(tpTot)} un | ${fmtW(tpTot*0.085)} kg\n`;
+        wa += `Perdas: ${fmtN(tpPer)} un | ${fmtW(tpPer*0.085)} kg\n`;
+        wa += `Consumo Total: ${fmtN(tpCon)} un | ${fmtW(tpCon*0.085)} kg\n\n`;
+
+        if (S.occs.length > 0) {
+            wa += '*OCORRENCIAS*\n';
+            S.occs.forEach((o, i) => {
+                wa += `${i+1}. *[${o.tipo}]* ${o.time}`;
+                if (parseInt(o.dur) > 0) wa += ` (${o.dur}min)`;
+                wa += ` - ${o.desc}\n`;
+            });
+            wa += '\n';
+        }
+
+        if (S.cmps.length > 0) {
+            wa += '*TROCA COMPONENTES*\n';
+            S.cmps.forEach((c, i) => {
+                wa += `${i+1}. *[${c.maq}]* ${c.part} - ${c.tIn}`;
+                if (c.tOut) wa += ` > ${c.tOut}`;
+                wa += ` | ${c.op}\n`;
+            });
+        }
+
+        const encoded = encodeURIComponent(wa);
+        window.open(`https://wa.me/?text=${encoded}`, '_blank');
+        toast('Abrindo WhatsApp...');
+    }
+
+    /* ===== INICIALIZAÇÃO ===== */
+    calcCaixa();
+    calcTampa();
+    </script>
+</body>
+</html>
